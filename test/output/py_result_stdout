@@ -1,0 +1,15 @@
+File: test\input\py_ignore.py, lines 1-1
+Pylint issue: missing-module-docstring
+Reason: (No reason provided)
+
+File: test\input\py_ignore.py, lines 22-22
+Pylint issue: missing-class-docstring
+Reason: Self explanatory class
+
+File: test\input\py_ignore.py, lines 31-31
+Pylint issue: missing-function-docstring
+Reason: self explanatory function
+
+File: test\input\py_ignore.py, lines 36-36
+Pylint issue: missing-function-docstring
+Reason: (No reason provided)
