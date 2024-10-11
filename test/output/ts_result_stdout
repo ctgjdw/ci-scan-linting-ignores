@@ -1,0 +1,77 @@
+File: dist/*
+Lines: 2-2
+Type: ignore from .eslintignore
+Rule: NA
+Reason: ignore built files
+
+File: node_modules
+Lines: 5-5
+Type: ignore from .eslintignore
+Rule: NA
+Reason: ignore 3rd party packages
+
+File: test\input\ts_ignore.ts
+Lines: 1-1
+Type: eslint-ignore (entire file)
+Rule: space-before-function-paren
+Reason: (No reason provided)
+
+File: test\input\ts_ignore.ts
+Lines: 2-2
+Type: eslint-ignore (entire file)
+Rule: comma-dangle
+Reason: (No reason provided)
+
+File: test\input\ts_ignore.ts
+Lines: 3-3
+Type: eslint-ignore (entire file)
+Rule: semi
+Reason: (No reason provided)
+
+File: test\input\ts_ignore.ts
+Lines: 4-4
+Type: eslint-ignore (entire file)
+Rule: prettier/prettier,@typescript-eslint/semi
+Reason: (No reason provided)
+
+File: test\input\ts_ignore.ts
+Lines: 6-6
+Type: eslint-ignore (entire file)
+Rule: quotes, @typescript-eslint/quotes
+Reason: disable the below
+
+File: test\input\ts_ignore.ts
+Lines: 13-13
+Type: ts-ignore (single line)
+Rule: NA
+Reason: (No reason provided)
+
+File: test\input\ts_ignore.ts
+Lines: 15-15
+Type: ts-ignore (single line)
+Rule: NA
+Reason: (No reason provided)
+
+File: test\input\ts_ignore.ts
+Lines: 30-30
+Type: eslint-ignore (single line)
+Rule: space-before-function-paren
+Reason: (No reason provided)
+
+File: test\input\ts_ignore.ts
+Lines: 39-39
+Type: eslint-ignore (single line)
+Rule: no-use-before-define
+Reason: (No reason provided)
+
+File: test\input\ts_ignore.ts
+Lines: 60-60
+Type: eslint-ignore (single line)
+Rule: no-use-before-define
+Reason: defined below
+
+File: test\input\ts_ignore.ts
+Lines: 63-63
+Type: eslint-ignore (single line)
+Rule: no-use-before-define
+Reason: defined below

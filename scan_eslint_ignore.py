@@ -6,13 +6,39 @@ from dataclasses import dataclass
 from logging import Logger
 from pathlib import Path
 from typing import List, Optional
+from enum import Enum
 
 
-logger = Logger("scan-pylint-ignore")
-PYLINT_IGNORE_PATTERN = re.compile(
-    r".*#\s*pylint\s*:\s*disable(?:-next)?\s*=\s*([a-zA-Z-]+)(?: (.+))?$"
+logger = Logger("scan-eslint-ignore")
+
+TS_COMMENT_PATTERN = re.compile(r".*//\s*(.+)")
+
+ESLINT_IGNORE_ENTIRE_FILE_PATTERN = re.compile(
+    r"^/\*\s*eslint-disable\s*([a-zA-Z@\-,\s\/]*)\s*\*/$"
 )
-PYTHON_COMMENT_PATTERN = re.compile(r".*#\s*(.+)$")
+
+ESLINT_INLINE_IGNORE_PATTERN = re.compile(
+    r".*//\s*eslint-disable(?:-next)?-line\s*([a-zA-Z@\-,\s\/]*)\s*$"
+)
+
+TS_INLINE_IGNORE = re.compile(r"^//\s*\@ts-(?:ignore)?(?:expect-error)?")
+
+
+class IgnoreType(Enum):
+    ESLINT_IGNORE_ESLINTIGNORE = "ignore from .eslintignore"
+    ESLINT_IGNORE_ENTIRE_FILE = "eslint-ignore (entire file)"
+    ESLINT_IGNORE_SINGLE_LINE = "eslint-ignore (single line)"
+    TSLINT_IGNORE_SINGLE_LINE = "ts-ignore (single line)"
+
+
+SEARCH_IGNORE_TYPE_TUPLES = [
+    ("/\\*\\s*eslint-disable", IgnoreType.ESLINT_IGNORE_ENTIRE_FILE),
+    (
+        ".*//\\s*eslint-disable",
+        IgnoreType.ESLINT_IGNORE_SINGLE_LINE,
+    ),
+    ("@ts-", IgnoreType.TSLINT_IGNORE_SINGLE_LINE),
+]
 
 
 @dataclass
@@ -20,27 +46,33 @@ class Ignore:
     filepath: Path
     start: int
     end: int
-    rule: str
+    rule: Optional[str]
     reason: List[str]
+    type: Optional[IgnoreType]
 
     @property
-    def keys(self) -> tuple[str, str, str, str]:
-        return ("File", "Line section", "Pylint rule", "Reason")
+    def keys(self) -> tuple[str, str, str, str, str]:
+        return ("File", "Line section", "Type", "Rule", "Reason")
 
     @property
     def values(self) -> dict[str, str]:
+        if self.type is None:
+            logger.error("Invalid Ignore.type")
+            sys.exit(1)
+
         reason = " ".join(self.reason) if self.reason else "(No reason provided)"
         return {
             "File": str(self.filepath),
             "Line section": f"{self.start}-{self.end}",
-            "Pylint rule": self.rule,
+            "Type": self.type.value,
+            "Rule": self.rule if self.rule else "NA",
             "Reason": reason,
         }
 
 
 def parse_args():
     parser = ArgumentParser(
-        description="Helper script to detect pylint ignores within all Python files within"
+        description="Helper script to detect eslint and ts ignores within all js/ts files within"
         " a directory, and formats it as a report"
     )
 
@@ -49,7 +81,15 @@ def parse_args():
         type=Path,
         nargs="?",
         default=Path("."),
-        help="Path to a Python file, or a directory of python files. Defaults to the current directory.",
+        help="Path to a file, or a directory. Defaults to the current directory.",
+    )
+
+    parser.add_argument(
+        "-E",
+        "--eslint-ignore-path",
+        type=Path,
+        default=Path(".eslintignore"),
+        help="Path to the .eslintignore file to scan for, if it exists.",
     )
 
     parser.add_argument(
@@ -60,33 +100,45 @@ def parse_args():
     )
 
     parser.add_argument(
+        "-F",
+        "--file-ext",
+        type=str,
+        help="The list of extensions to search for ignores. The list should be comma-seperated.",
+        default=".mjs,.js,.ts,.jsx,.tsx",
+    )
+
+    parser.add_argument(
         "-I",
         "--ignore-dirs",
         type=str,
         help="The list of directories to ignore. The application will not search. The list should be comma-seperated.",
+        default="node_modules",
     )
 
     parser.add_argument(
         "-v",
         "--verify",
         action="store_true",
-        help="Enable to only verify that all Pylint ignores is accompanied by a reason. (Default: False)",
+        help="Enable to only verify that all ignores is accompanied by a reason. (Default: False)",
     )
 
     return parser.parse_args()
 
 
-def get_reason(rematch: re.Match, line_number: int, lines: List[str]) -> List[str]:
+def get_reason(line_number: int, lines: List[str]) -> List[str]:
     reasons: List[str] = []
     previous_line = lines[line_number - 2]
 
-    if comment_match := PYTHON_COMMENT_PATTERN.match(previous_line):
+    if comment_match := TS_COMMENT_PATTERN.match(previous_line):
         reasons.append(comment_match.group(1).strip())
 
-    if reason := rematch.group(2):
-        reasons.append(reason.strip())
-
     return reasons
+
+
+def get_ignore_type(match: re.Match[str]):
+    for search_str, result in SEARCH_IGNORE_TYPE_TUPLES:
+        if search_str in match.re.pattern:
+            return result
 
 
 def find_ignores(filepath: Path) -> List[Ignore]:
@@ -101,23 +153,30 @@ def find_ignores(filepath: Path) -> List[Ignore]:
         try:
             line_number, line = next(gen)
             line = line.strip()
-            if rematch := PYLINT_IGNORE_PATTERN.match(line):
+            if rematch := (
+                ESLINT_IGNORE_ENTIRE_FILE_PATTERN.match(line)
+                or ESLINT_INLINE_IGNORE_PATTERN.match(line)
+                or TS_INLINE_IGNORE.match(line)
+            ):
                 if ignore is not None:
                     # add current buffered ignore into list
                     # before handling the newly detected ignore
                     ignores.append(ignore)
 
+                rule = None
+                try:
+                    rule: str = rematch.group(1).strip()
+                except IndexError as err:
+                    logger.debug("Unable to retrieve rule matching group: %s", str(err))
+
                 ignore = Ignore(
                     filepath,
                     line_number,
                     line_number,
-                    rematch.group(1),
-                    get_reason(rematch, line_number, lines),
+                    rule,
+                    get_reason(line_number, lines),
+                    get_ignore_type(rematch),
                 )
-
-            elif (rematch := PYTHON_COMMENT_PATTERN.match(line)) and ignore is not None:
-                # If justification continues below the original ignore stub
-                ignore.reason.append(rematch.group(1).strip())
 
             elif ignore is not None:
                 ignores.append(ignore)
@@ -142,7 +201,7 @@ def catch_bad_ignores(ignores: List[Ignore]):
         return
 
     logger.error(
-        "ERROR: The following Pylint ignores were detected without any reasons for justification. "
+        "ERROR: The following ignores were detected without any reasons for justification. "
         "Please ensure that a reason is given either in the same comment line, or in comments immediately below the original ignore."
     )
 
@@ -162,12 +221,13 @@ def export(export_dir: Optional[Path], ignores: List[Ignore]):
             values = ignore.values
             print(f"File: {values['File']}")
             print(f"Lines: {values['Line section']}")
-            print(f"Pylint rule: {values['Pylint rule']}")
+            print(f"Type: {values['Type']}")
+            print(f"Rule: {values['Rule']}")
             print(f"Reason: {values['Reason']}")
             print()
 
     else:
-        export_path = export_dir / "pylint-ignores.csv"
+        export_path = export_dir / "eslint-ignores.csv"
         with export_path.open("w", encoding="utf-8", newline="") as file:
             writer = csv.DictWriter(file, ignores[0].keys)
             writer.writeheader()
@@ -176,10 +236,47 @@ def export(export_dir: Optional[Path], ignores: List[Ignore]):
                 writer.writerow(ignore.values)
 
 
+def scan_eslint_ignore_file(ignore_file_path: Path) -> List[Ignore]:
+    comment_pattern = re.compile(r"#\s*(.+)$")
+
+    def get_reason_for_ignore_file(line_number: int, lines: List[str]):
+        if line_number < 1:
+            return []
+
+        previous_line = lines[line_number - 1]
+        if result := comment_pattern.match(previous_line):
+            return [result.group(1).strip()]
+
+    ignores = []
+    if not ignore_file_path.exists():
+        return ignores
+
+    with ignore_file_path.open(encoding="utf8") as file:
+        lines = [input.strip() for input in file.readlines()]
+
+    for line_number, line in enumerate(lines):
+        if comment_pattern.match(line) or not line:
+            continue
+        ignores.append(
+            Ignore(
+                line,
+                line_number + 1,
+                line_number + 1,
+                None,
+                get_reason_for_ignore_file(line_number, lines),
+                IgnoreType.ESLINT_IGNORE_ESLINTIGNORE,
+            )
+        )
+
+    return ignores
+
+
 def main():
     args = parse_args()
     path: Path = args.path
+    extensions = [ext.strip() for ext in args.file_ext.split(",")]
     export_dir: Optional[Path] = args.output_dir
+    eslint_ignore_file_path: Path = args.eslint_ignore_path
     ignore_dirs: List[Path] = []
 
     if (ignore_dirs_str := args.ignore_dirs) is not None:
@@ -200,23 +297,29 @@ def main():
     ignores: List[Ignore] = []
     file_count = 0
 
+    ignores_in_file = scan_eslint_ignore_file(eslint_ignore_file_path)
+    ignores.extend(ignores_in_file)
+
     if path.is_file():
         ignores.extend(find_ignores(path))
         file_count += 1
     else:
-        for filepath in path.glob("**/*.py"):
-            if any([filepath.is_relative_to(path) for path in ignore_dirs]):
+        paths = [
+            filepath for filepath in path.glob("**/*") if filepath.suffix in extensions
+        ]
+        for file in paths:
+            if any([file.is_relative_to(path) for path in ignore_dirs]):
                 continue
-            ignores.extend(find_ignores(filepath))
+            ignores.extend(find_ignores(file))
             file_count += 1
 
     if not ignores:
-        logger.info("INFO: No pylint ignores detected.")
+        logger.info("INFO: No ignores detected.")
         sys.exit(0)
 
     logger.warning(
-        "WARNING: %d instance%s of Pylint ignores were detected across %d file%s, please assess if they are still relevant.",
-        len(ignores),
+        "WARNING: %d instance%s of ignores were detected across %d file%s, please assess if they are still relevant.",
+        len(ignores) - len(ignores_in_file),
         "" if len(ignores) == 1 else "s",
         file_count,
         "" if file_count == 1 else "s",

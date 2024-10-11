@@ -1,0 +1,14 @@
+File,Line section,Type,Rule,Reason
+dist/*,2-2,ignore from .eslintignore,NA,ignore built files
+node_modules,5-5,ignore from .eslintignore,NA,ignore 3rd party packages
+test\input\ts_ignore.ts,1-1,eslint-ignore (entire file),space-before-function-paren,(No reason provided)
+test\input\ts_ignore.ts,2-2,eslint-ignore (entire file),comma-dangle,(No reason provided)
+test\input\ts_ignore.ts,3-3,eslint-ignore (entire file),semi,(No reason provided)
+test\input\ts_ignore.ts,4-4,eslint-ignore (entire file),"prettier/prettier,@typescript-eslint/semi",(No reason provided)
+test\input\ts_ignore.ts,6-6,eslint-ignore (entire file),"quotes, @typescript-eslint/quotes",disable the below
+test\input\ts_ignore.ts,13-13,ts-ignore (single line),NA,(No reason provided)
+test\input\ts_ignore.ts,15-15,ts-ignore (single line),NA,(No reason provided)
+test\input\ts_ignore.ts,30-30,eslint-ignore (single line),space-before-function-paren,(No reason provided)
+test\input\ts_ignore.ts,39-39,eslint-ignore (single line),no-use-before-define,(No reason provided)
+test\input\ts_ignore.ts,60-60,eslint-ignore (single line),no-use-before-define,defined below
+test\input\ts_ignore.ts,63-63,eslint-ignore (single line),no-use-before-define,defined below

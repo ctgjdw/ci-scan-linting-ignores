@@ -1,0 +1,5 @@
+# ignore built files
+dist/*
+
+# ignore 3rd party packages
+node_modules

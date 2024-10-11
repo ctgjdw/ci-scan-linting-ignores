@@ -1,4 +1,4 @@
-File,Line section,Pylint issue,Reason
+File,Line section,Pylint rule,Reason
 test\input\py_ignore.py,1-1,missing-module-docstring,(No reason provided)
 test\input\py_ignore.py,22-22,missing-class-docstring,Self explanatory class
 test\input\py_ignore.py,31-31,missing-function-docstring,self explanatory function

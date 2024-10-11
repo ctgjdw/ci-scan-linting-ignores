@@ -15,6 +15,20 @@
                 "-O",
                 "report/"
             ]
+        },
+        {
+            "name": "Debug scan eslint",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scan_eslint_ignore.py",
+            "console": "integratedTerminal",
+            "args": [
+                "test/",
+                "-O",
+                "report/",
+                "-E",
+                "test/input/.eslintignore"
+            ]
         }
     ]
 }
